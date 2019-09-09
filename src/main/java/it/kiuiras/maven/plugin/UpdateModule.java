@@ -171,20 +171,24 @@ public class UpdateModule extends AbstractMojo {
             String currentVersion = PomUtil.getModuleVersion(pom);
             if (currentVersion != null && !currentVersion.isEmpty()) {
                 String nextVersion = getNextVersion(currentVersion);
-                getLog().info("Update project ".concat(PomUtil.getModuleGA(pom)).concat(" from version ")
-                        .concat(currentVersion).concat(" to version ").concat(nextVersion));
+                getLog().info("Processing change of ".concat(PomUtil.getModuleGA(pom)).concat(":")
+                        .concat(currentVersion).concat(" -> ").concat(nextVersion));
                 PomUtil.setModuleVersion(pom, nextVersion);
                 String ga = PomUtil.getModuleGA(pom);
                 allModulesPom.forEach((modGA, modPom) -> {
                     try {
                         if (PomUtil.isDependent(pom, modPom)) {
                             PomUtil.setDependencyVersion(modPom, ga, nextVersion);
-                            getLog().info("Update ".concat(PomUtil.getModuleGA(modPom).concat(" dependency from ".concat(PomUtil.getModuleGA(pom)).concat(" to version ").concat(nextVersion))));
+                            getLog().info("Processing ".concat(PomUtil.getModuleGA(modPom)
+                                    .concat("\n    Updating dependency ".concat(PomUtil.getModuleGA(pom))
+                                            .concat("\n        from version ").concat(currentVersion).concat(" to ").concat(nextVersion))));
                             depModules.putIfAbsent(modGA, modPom);
                         }
                         if (PomUtil.isSubmodule(pom, modPom)) {
                             PomUtil.setParentVersion(modPom, nextVersion);
-                            getLog().info("Update ".concat(PomUtil.getModuleGA(modPom).concat(" parent to version ").concat(nextVersion)));
+                            getLog().info("Processing ".concat(PomUtil.getModuleGA(modPom)
+                                    .concat("\n    Updating parent ".concat(PomUtil.getModuleGA(pom))
+                                            .concat("\n        from version ").concat(currentVersion).concat(" to ").concat(nextVersion))));
                         }
                     } catch (Exception e) {
                         getLog().error(e.getMessage(), e);

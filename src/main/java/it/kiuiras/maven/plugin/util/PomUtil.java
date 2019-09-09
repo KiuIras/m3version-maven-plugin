@@ -25,7 +25,7 @@ import static org.joox.JOOX.$;
  */
 public class PomUtil {
 
-    public static final String GROUP_ARTIFACT_SEPARATOR = ".";
+    public static final String GROUP_ARTIFACT_SEPARATOR = ":";
 
     /**
      * Gets a {@link String} with the group id and the artifact id of the module defined by the given POM {@link File}.
