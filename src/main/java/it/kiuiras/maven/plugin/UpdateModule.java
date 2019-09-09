@@ -42,10 +42,16 @@ public class UpdateModule extends AbstractMojo {
     private VersionType versionType;
 
     /**
+     * Property to set to update parent of the updated modules.
+     */
+    @Parameter(property = "updateParent", defaultValue = "true")
+    private boolean updateParent;
+
+    /**
      * The Maven Project.
      */
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
-    protected MavenProject project;
+    private MavenProject project;
 
     /**
      * Executes the Update Module goal.
@@ -64,9 +70,11 @@ public class UpdateModule extends AbstractMojo {
             ArrayList<File> pomList = new ArrayList<>(projectsToUpdate.values());
             for (int i = 0; i < pomList.size(); i++) {
                 File pomToUpdate = pomList.get(i);
-                // TODO No need to update version of submodules, instead should be implements the update of the parent
-                // getSubmodules(pomToUpdate).forEach((smGa, smPom) -> projectsToUpdate.putIfAbsent(smGa, smPom));
                 updateModuleVersion(pomToUpdate).forEach((dmGa, dmPom) -> projectsToUpdate.putIfAbsent(dmGa, dmPom));
+                String parentGA = PomUtil.getParentGA(pomToUpdate);
+                if (updateParent && parentGA != null) {
+                    projectsToUpdate.putIfAbsent(parentGA, allModulesPom.get(parentGA));
+                }
                 pomList = new ArrayList<>(projectsToUpdate.values());
             }
         } catch (Exception e) {
@@ -119,10 +127,10 @@ public class UpdateModule extends AbstractMojo {
             String moduleGA = PomUtil.getModuleGA(rootPom);
             getLog().debug("Add module ".concat(moduleGA));
             allModulesPom.put(moduleGA, rootPom);
-            List<File> files = Arrays.asList(rootPom.getParentFile().listFiles());
+            List<File> files = Arrays.asList(Objects.requireNonNull(rootPom.getParentFile().listFiles()));
             files.forEach(f -> {
                 if (f.isDirectory()) {
-                    List<File> dirFiles = Arrays.asList(f.listFiles());
+                    List<File> dirFiles = Arrays.asList(Objects.requireNonNull(f.listFiles()));
                     dirFiles.forEach(df -> {
                         if (df.getName().equalsIgnoreCase(POM_XML)) {
                             allModulesPom.putAll(getAllModules(df));
@@ -150,9 +158,9 @@ public class UpdateModule extends AbstractMojo {
     }
 
     /**
-     * Updates the version of the module given its POM {@link File} (if a version is specified).
+     * Updates the version of the module given its POM {@link File} (if a version is specified) and return a {@link Map} of all dependants modules.
      * <p>
-     * This modifies the version of the module in the given POM {@link File} and in the dependencies section of all the POM of the dependent modules.
+     * This modifies the version of the module in the given POM, in the parent section of the submodules POM and in the dependencies section of dependant modules POM.
      *
      * @param pom the POM to update
      * @return the {@link Map} with dependent modules.
@@ -166,11 +174,17 @@ public class UpdateModule extends AbstractMojo {
                 getLog().info("Update project ".concat(PomUtil.getModuleGA(pom)).concat(" from version ")
                         .concat(currentVersion).concat(" to version ").concat(nextVersion));
                 PomUtil.setModuleVersion(pom, nextVersion);
-                allModulesPom.forEach((depGa, depPom) -> {
+                String ga = PomUtil.getModuleGA(pom);
+                allModulesPom.forEach((modGA, modPom) -> {
                     try {
-                        if (PomUtil.isDependent(pom, depPom)) {
-                            getLog().debug("Module ".concat(PomUtil.getModuleGA(depPom).concat(" depends from ".concat(PomUtil.getModuleGA(pom)))));
-                            depModules.putIfAbsent(depGa, depPom);
+                        if (PomUtil.isDependent(pom, modPom)) {
+                            PomUtil.setDependencyVersion(modPom, ga, nextVersion);
+                            getLog().info("Update ".concat(PomUtil.getModuleGA(modPom).concat(" dependency from ".concat(PomUtil.getModuleGA(pom)).concat(" to version ").concat(nextVersion))));
+                            depModules.putIfAbsent(modGA, modPom);
+                        }
+                        if (PomUtil.isSubmodule(pom, modPom)) {
+                            PomUtil.setParentVersion(modPom, nextVersion);
+                            getLog().info("Update ".concat(PomUtil.getModuleGA(modPom).concat(" parent to version ").concat(nextVersion)));
                         }
                     } catch (Exception e) {
                         getLog().error(e.getMessage(), e);
