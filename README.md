@@ -6,7 +6,7 @@ M3 Version Maven Plugin provides a update-module goal that can be used to update
 
 ## How-To
 ### Prerequisites
-This plugin works with the "Major.Minor.Patch" versioning system. [Semantic Versioning](http://github.com)
+This plugin works with the "Major.Minor.Patch" [Semantic Versioning](https://semver.org/). 
 
 ### Configuration
 To use this plugin, clone and compile it via 
